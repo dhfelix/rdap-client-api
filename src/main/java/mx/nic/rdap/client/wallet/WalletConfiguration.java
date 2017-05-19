@@ -12,35 +12,33 @@ public class WalletConfiguration {
 	private static final String USER_HASH_SALT_SIZE = "user.hash_salt_size";
 	private static final String USER_HASH_ITERATIONS = "user.hash_iterations";
 	private static final String USER_HASH_ALGORITHM = "user.hash_algorithm";
-	private static final String USER_KEY_ALGORITHM = "user.key_algorithm";
 	private static final String USER_KEY_SIZE = "user.key_size";
 	private static final String USER_PBE_ALGORITHM = "user.pbe_algorithm";
 
 	private static final String WALLET_KEY_ALGORITHM = "wallet.key_algorithm";
-	private static final String WALLET_KEY_SIZE = "wallet.key_size";
+	private static final String WALLET_CIPHER_ALGORITHM = "wallet.cipher_algorithm";
 
-	private int userHashSaltSize;
-	private int userHashIterations;
+	private int userSaltSize;
+	private int userIterations;
 	private String userHashAlgorithm;
-	private String userKeyAlgorithm;
 	private int userKeySize;
 	private String userPBEAlgorithm;
 	private String walletKeyAlgorithm;
-	private int walletKeySize;
+	private String walletCipherAlgorithm;
 
 	public WalletConfiguration(Properties properties) throws ConfigurationException {
 		List<String> invalidProperties = new ArrayList<>();
 
 		String key = USER_HASH_SALT_SIZE;
 		try {
-			userHashSaltSize = getInt(properties.getProperty(key));
+			userSaltSize = getInt(properties.getProperty(key));
 		} catch (NumberFormatException e) {
 			invalidProperties.add(key);
 		}
 
 		key = USER_HASH_ITERATIONS;
 		try {
-			userHashIterations = getInt(properties.getProperty(key));
+			userIterations = getInt(properties.getProperty(key));
 		} catch (NumberFormatException e) {
 			invalidProperties.add(key);
 		}
@@ -48,13 +46,6 @@ public class WalletConfiguration {
 		key = USER_HASH_ALGORITHM;
 		try {
 			userHashAlgorithm = getString(properties.getProperty(key));
-		} catch (NullPointerException e) {
-			invalidProperties.add(key);
-		}
-
-		key = USER_KEY_ALGORITHM;
-		try {
-			userKeyAlgorithm = getString(properties.getProperty(key));
 		} catch (NullPointerException e) {
 			invalidProperties.add(key);
 		}
@@ -80,13 +71,12 @@ public class WalletConfiguration {
 			invalidProperties.add(key);
 		}
 
-		key = WALLET_KEY_SIZE;
+		key = WALLET_CIPHER_ALGORITHM;
 		try {
-			walletKeySize = getInt(properties.getProperty(key));
-		} catch (NumberFormatException e) {
+			walletCipherAlgorithm = getString(properties.getProperty(key));
+		} catch (NullPointerException e) {
 			invalidProperties.add(key);
 		}
-
 		if (!invalidProperties.isEmpty()) {
 			throw new ConfigurationException("Invalid properties : " + invalidProperties.toString());
 		}
@@ -106,20 +96,20 @@ public class WalletConfiguration {
 		return value;
 	}
 
-	public int getUserHashSaltSize() {
-		return userHashSaltSize;
+	public int getUserSaltSize() {
+		return userSaltSize;
 	}
 
-	public void setUserHashSaltSize(int userHashSaltSize) {
-		this.userHashSaltSize = userHashSaltSize;
+	public void setUserSaltSize(int userHashSaltSize) {
+		this.userSaltSize = userHashSaltSize;
 	}
 
-	public int getUserHashIterations() {
-		return userHashIterations;
+	public int getUserIterations() {
+		return userIterations;
 	}
 
-	public void setUserHashIterations(int userHashIterations) {
-		this.userHashIterations = userHashIterations;
+	public void setUserIterations(int userHashIterations) {
+		this.userIterations = userHashIterations;
 	}
 
 	public String getUserHashAlgorithm() {
@@ -128,14 +118,6 @@ public class WalletConfiguration {
 
 	public void setUserHashAlgorithm(String userHashAlgorithm) {
 		this.userHashAlgorithm = userHashAlgorithm;
-	}
-
-	public String getUserKeyAlgorithm() {
-		return userKeyAlgorithm;
-	}
-
-	public void setUserKeyAlgorithm(String userKeyAlgorithm) {
-		this.userKeyAlgorithm = userKeyAlgorithm;
 	}
 
 	public int getUserKeySize() {
@@ -162,12 +144,12 @@ public class WalletConfiguration {
 		this.walletKeyAlgorithm = walletKeyAlgorithm;
 	}
 
-	public int getWalletKeySize() {
-		return walletKeySize;
+	public String getWalletCipherAlgorithm() {
+		return walletCipherAlgorithm;
 	}
 
-	public void setWalletKeySize(int walletKeySize) {
-		this.walletKeySize = walletKeySize;
+	public void setWalletCipherAlgorithm(String walletCipherAlgorithm) {
+		this.walletCipherAlgorithm = walletCipherAlgorithm;
 	}
 
 }

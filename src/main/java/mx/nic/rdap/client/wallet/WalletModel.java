@@ -9,25 +9,21 @@ import java.util.Properties;
 
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.xml.bind.DatatypeConverter;
 
 import mx.nic.rdap.client.dao.exception.DataAccessException;
-import mx.nic.rdap.client.dao.object.EncryptedWalletKey;
-import mx.nic.rdap.client.dao.object.RdapClientUser;
+import mx.nic.rdap.client.dao.object.WalletUser;
 import mx.nic.rdap.client.exception.ConfigurationException;
+import mx.nic.rdap.client.exception.CryptoException;
 import mx.nic.rdap.client.exception.UserExistException;
 import mx.nic.rdap.client.service.DataAccessService;
-import mx.nic.rdap.client.spi.UserDAO;
-import mx.nic.rdap.client.spi.WalletKeyDAO;
+import mx.nic.rdap.client.spi.WalletUserDAO;
 
 public class WalletModel {
-
 	private static WalletConfiguration walletConfiguration;
 
 	private static final String DEFAULT_PROPERTIES_FILE = "META-INF/default_wallet_conf.properties";
-
-	private WalletModel() {
-		// no code
-	}
 
 	private static Properties getDefaultProperties() throws IOException {
 		Properties properties = new Properties();
@@ -50,73 +46,163 @@ public class WalletModel {
 		return walletConfiguration;
 	}
 
-	public static WalletUser createNewUser(String username, String password)
-			throws NoSuchAlgorithmException, UserExistException, DataAccessException, InvalidKeySpecException,
-			InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException {
-		RdapClientUser user = UserModel.createUser(username, password);
-
-		WalletKey walletKey = new WalletKey();
-		PBEKey userPasswordKey = new PBEKey(password, user.getSalt(), user.getIterations(), user.getPbeAlgorithm(),
-				user.getKeySize(), user.getKeyAlgorithm());
-
-		EncryptedWalletKey encryptedKey = new EncryptedWalletKey(null, user.getId(),
-				walletKey.getEncryptedWalletKey(userPasswordKey.getSecretKey()), walletKey.getCipherAlgorithm());
-
-		WalletKeyDAO keyDAO = DataAccessService.getWalletKeyDAO();
-		keyDAO.storeWalletKey(encryptedKey);
-
-		return new WalletUser(user, encryptedKey, userPasswordKey.getSecretKey(), walletKey.getUserKey());
+	private WalletModel() {
+		// no code
 	}
 
-	public static WalletUser updateUser(WalletUser walletUser, String oldPassword, String newPassword)
-			throws DataAccessException, NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException,
-			NoSuchPaddingException, IllegalBlockSizeException {
-		// get the user
-		RdapClientUser user = walletUser.getUser();
-		EncryptedWalletKey encryptedWalletKey = walletUser.getEncryptedWalletKey();
+	public static User insertNewUser(String username, String password)
+			throws DataAccessException, CryptoException, UserExistException {
+		if (existUser(username)) {
+			throw new UserExistException("The username '" + username + "' already exists");
+		}
+		User user;
+		try {
+			user = createNewUser(username, password);
+		} catch (NoSuchAlgorithmException | InvalidKeyException | InvalidKeySpecException | NoSuchPaddingException
+				| IllegalBlockSizeException e) {
+			throw new CryptoException(e);
+		}
 
-		// decrypt with old password
-		PBEKey oldPBEKey = new PBEKey(oldPassword, user.getSalt(), user.getIterations(), user.getPbeAlgorithm(),
-				user.getKeySize(), user.getKeyAlgorithm());
-		WalletKey walletKey = new WalletKey(encryptedWalletKey.getEncryptedWalletKey(), oldPBEKey.getSecretKey(),
-				encryptedWalletKey.getWalletKeyAlgorithm());
+		WalletUserDAO dao = DataAccessService.getWalletUserDAO();
+		long userId = dao.store(user.getWalletUser());
+		user.getWalletUser().setId(userId);
 
-		// encrypt with the new password and update
-		String base64PasswordHash = UserModel.getBase64PasswordHash(newPassword, user.getSalt(), user.getIterations(),
-				user.getHashAlgorithm());
-		user.setHashedPassword(base64PasswordHash);
-
-		PBEKey newPBEKey = new PBEKey(newPassword, user.getSalt(), user.getIterations(), user.getPbeAlgorithm(),
-				user.getKeySize(), user.getKeyAlgorithm());
-		encryptedWalletKey.setEncryptedWalletKey(walletKey.getEncryptedWalletKey(newPBEKey.getSecretKey()));
-
-		UserDAO userDao = DataAccessService.getUserDAO();
-		WalletKeyDAO keyDAO = DataAccessService.getWalletKeyDAO();
-		userDao.updateUser(user);
-		keyDAO.updateWalletKey(encryptedWalletKey);
-
-		return walletUser;
+		return user;
 	}
 
-	public static WalletUser getUser(String username, String password) throws DataAccessException,
-			NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, NoSuchPaddingException {
-		UserDAO userDAO = DataAccessService.getUserDAO();
-		RdapClientUser user = userDAO.getUser(username);
-		if (user == null || !UserModel.isValidPassword(password, user.getSalt(), user.getIterations(),
-				user.getHashAlgorithm(), user.getHashedPassword())) {
+	private static User createNewUser(String username, String password) throws NoSuchAlgorithmException,
+			InvalidKeySpecException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException {
+		WalletUser walletUser = new WalletUser();
+
+		String userHashAlgorithm = getWalletConfiguration().getUserHashAlgorithm();
+		int userIterations = getWalletConfiguration().getUserIterations();
+		int userKeySize = getWalletConfiguration().getUserKeySize();
+		String userPBEAlgorithm = getWalletConfiguration().getUserPBEAlgorithm();
+		int userSaltSize = getWalletConfiguration().getUserSaltSize();
+		String walletCipherAlgorithm = getWalletConfiguration().getWalletCipherAlgorithm();
+		String walletKeyAlgorithm = getWalletConfiguration().getWalletKeyAlgorithm();
+
+		byte[] saltBytes = Crypto.getRandomSalt(userSaltSize);
+		String salt = DatatypeConverter.printHexBinary(saltBytes);
+
+		String base64PasswordHash = Crypto.getBase64PasswordHash(password, saltBytes, userIterations,
+				userHashAlgorithm);
+
+		SecretKey secretKey = Crypto.createNewKey();
+		SecretKey pbeSecretKey = Crypto.getPBESecretKey(password, userPBEAlgorithm, saltBytes, userIterations,
+				userKeySize, walletKeyAlgorithm);
+
+		String base64EncryptedWalletSecretKey = Crypto.getBase64EncryptedWalletSecretKey(pbeSecretKey, secretKey,
+				walletCipherAlgorithm);
+
+		walletUser.setCipherAlgorithm(walletCipherAlgorithm);
+		walletUser.setEncryptedWalletKey(base64EncryptedWalletSecretKey);
+		walletUser.setHashAlgorithm(userHashAlgorithm);
+		walletUser.setHashedPassword(base64PasswordHash);
+		walletUser.setIterations(userIterations);
+		walletUser.setKeyAlgorithm(walletKeyAlgorithm);
+		walletUser.setKeySize(userKeySize);
+		walletUser.setPbeAlgorithm(userPBEAlgorithm);
+		walletUser.setSalt(salt);
+		walletUser.setUsername(username);
+
+		User newUser = new User(walletUser, pbeSecretKey, secretKey);
+
+		return newUser;
+	}
+
+	public static User getUser(String username, String password) throws DataAccessException, CryptoException {
+		WalletUserDAO dao = DataAccessService.getWalletUserDAO();
+
+		WalletUser user = dao.getByUsername(username);
+		if (user == null || !isValidPassword(password, user.getSalt(), user.getIterations(), user.getHashAlgorithm(),
+				user.getHashedPassword())) {
 			return null;
 		}
 
-		WalletKeyDAO keyDao = DataAccessService.getWalletKeyDAO();
-		EncryptedWalletKey encryptedWalletKey = keyDao.getWalletKey(user.getId());
+		// get User PBE
+		SecretKey pbeSecretKey;
+		try {
+			pbeSecretKey = Crypto.getPBESecretKey(password, user.getPbeAlgorithm(),
+					DatatypeConverter.parseHexBinary(user.getSalt()), user.getIterations(), user.getKeySize(),
+					user.getKeyAlgorithm());
+		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+			throw new CryptoException(e);
+		}
+		// get User wallet key
+		SecretKey walletSecretKey;
+		try {
+			walletSecretKey = Crypto.getWalletSecretKey(pbeSecretKey, user.getEncryptedWalletKey(),
+					user.getCipherAlgorithm(), user.getKeyAlgorithm());
+		} catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
+			throw new CryptoException(e);
+		}
 
-		PBEKey pbeKey = new PBEKey(password, user.getSalt(), user.getIterations(), user.getPbeAlgorithm(),
-				user.getKeySize(), user.getKeyAlgorithm());
-
-		WalletKey walletKey = new WalletKey(encryptedWalletKey.getEncryptedWalletKey(), pbeKey.getSecretKey(),
-				encryptedWalletKey.getWalletKeyAlgorithm());
-
-		return new WalletUser(user, encryptedWalletKey, pbeKey.getSecretKey(), walletKey.getUserKey());
+		return new User(user, pbeSecretKey, walletSecretKey);
 	}
 
+	private static boolean isValidPassword(String plainPassword, String salt, int iterations, String hashAlgorithm,
+			String storedPasswordHash) throws CryptoException {
+
+		String base64PasswordHash;
+		try {
+			base64PasswordHash = Crypto.getBase64PasswordHash(plainPassword, DatatypeConverter.parseHexBinary(salt),
+					iterations, hashAlgorithm);
+		} catch (NoSuchAlgorithmException e) {
+			throw new CryptoException(e);
+		}
+		return base64PasswordHash.equals(storedPasswordHash);
+	}
+
+	public static User updatePassword(User user, String oldPassword, String newPassword)
+			throws DataAccessException, CryptoException {
+		// get the user
+		WalletUser wUser = user.getWalletUser();
+
+		byte[] salt = DatatypeConverter.parseHexBinary(wUser.getSalt());
+		// verify the oldPassword
+		boolean validPassword = isValidPassword(oldPassword, wUser.getSalt(), wUser.getIterations(),
+				wUser.getHashAlgorithm(), wUser.getHashedPassword());
+		if (!validPassword) {
+			return null;
+		}
+
+		// updates new password hash
+		try {
+			String base64PasswordHash = Crypto.getBase64PasswordHash(newPassword, salt, wUser.getIterations(),
+					wUser.getHashAlgorithm());
+			wUser.setHashedPassword(base64PasswordHash);
+		} catch (NoSuchAlgorithmException e) {
+			throw new CryptoException(e);
+		}
+
+		// encrypt the wallet secret key with new password
+		try {
+			SecretKey pbeSecretKey = Crypto.getPBESecretKey(newPassword, wUser.getPbeAlgorithm(), salt,
+					wUser.getIterations(), wUser.getKeySize(), wUser.getKeyAlgorithm());
+			user.setPbeKey(pbeSecretKey);
+		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+			throw new CryptoException(e);
+		}
+
+		// updates new encrypted wallet secret key
+		try {
+			String base64EncryptedWalletSecretKey = Crypto.getBase64EncryptedWalletSecretKey(user.getPbeKey(),
+					user.getUserWalletKey(), wUser.getCipherAlgorithm());
+			wUser.setEncryptedWalletKey(base64EncryptedWalletSecretKey);
+		} catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
+				| IllegalBlockSizeException e) {
+			throw new CryptoException(e);
+		}
+
+		WalletUserDAO dao = DataAccessService.getWalletUserDAO();
+		dao.update(wUser);
+
+		return user;
+	}
+
+	public static boolean existUser(String username) throws DataAccessException {
+		WalletUserDAO dao = DataAccessService.getWalletUserDAO();
+		return dao.existByUsername(username);
+	}
 }
