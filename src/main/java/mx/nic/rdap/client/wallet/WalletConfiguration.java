@@ -1,13 +1,26 @@
 package mx.nic.rdap.client.wallet;
 
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.xml.bind.DatatypeConverter;
+
+import mx.nic.rdap.client.dao.object.WalletUser;
 import mx.nic.rdap.client.exception.ConfigurationException;
+import mx.nic.rdap.client.exception.CryptoException;
 
 public class WalletConfiguration {
+
+	private final static String DUMMY_PASS = "validation dummy password";
+	private final static String DUMMY_USERNAME = "dummy username";
 
 	private static final String USER_HASH_SALT_SIZE = "user.hash_salt_size";
 	private static final String USER_HASH_ITERATIONS = "user.hash_iterations";
@@ -79,6 +92,14 @@ public class WalletConfiguration {
 		}
 		if (!invalidProperties.isEmpty()) {
 			throw new ConfigurationException("Invalid properties : " + invalidProperties.toString());
+		}
+
+		try {
+			validateWalletConfig();
+		} catch (InvalidKeyException | NoSuchAlgorithmException | InvalidKeySpecException | NoSuchPaddingException
+				| IllegalBlockSizeException | CryptoException e) {
+			throw new ConfigurationException(
+					"It looks like it is an invalid property or is not available for encryption or hashing.", e);
 		}
 	}
 
@@ -152,4 +173,51 @@ public class WalletConfiguration {
 		this.walletCipherAlgorithm = walletCipherAlgorithm;
 	}
 
+	private void validateWalletConfig() throws NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException,
+			NoSuchPaddingException, IllegalBlockSizeException, CryptoException {
+		WalletUser walletUser = new WalletUser();
+
+		byte[] saltBytes = Crypto.getRandomSalt(userSaltSize);
+		String salt = DatatypeConverter.printHexBinary(saltBytes);
+
+		String base64PasswordHash = Crypto.getBase64PasswordHash(DUMMY_PASS, saltBytes, userIterations,
+				userHashAlgorithm);
+
+		SecretKey secretKey = Crypto.createNewKey(walletKeyAlgorithm, userKeySize);
+		SecretKey pbeSecretKey = Crypto.getPBESecretKey(DUMMY_PASS, userPBEAlgorithm, saltBytes, userIterations,
+				userKeySize, walletKeyAlgorithm);
+
+		String base64EncryptedWalletSecretKey = Crypto.getBase64EncryptedWalletSecretKey(pbeSecretKey, secretKey,
+				walletCipherAlgorithm);
+
+		walletUser.setCipherAlgorithm(walletCipherAlgorithm);
+		walletUser.setEncryptedWalletKey(base64EncryptedWalletSecretKey);
+		walletUser.setHashAlgorithm(userHashAlgorithm);
+		walletUser.setHashedPassword(base64PasswordHash);
+		walletUser.setIterations(userIterations);
+		walletUser.setKeyAlgorithm(walletKeyAlgorithm);
+		walletUser.setKeySize(userKeySize);
+		walletUser.setPbeAlgorithm(userPBEAlgorithm);
+		walletUser.setSalt(salt);
+		walletUser.setUsername(DUMMY_USERNAME);
+
+		String otherBase64PasswordHash = Crypto.getBase64PasswordHash(DUMMY_PASS,
+				DatatypeConverter.parseHexBinary(walletUser.getSalt()), walletUser.getIterations(),
+				walletUser.getHashAlgorithm());
+
+		if (!base64PasswordHash.equals(otherBase64PasswordHash)) {
+			throw new CryptoException("Password hash are differents");
+		}
+
+		// get User PBE
+		SecretKey otherPbeSecretKey = Crypto.getPBESecretKey(DUMMY_PASS, walletUser.getPbeAlgorithm(),
+				DatatypeConverter.parseHexBinary(walletUser.getSalt()), walletUser.getIterations(),
+				walletUser.getKeySize(), walletUser.getKeyAlgorithm());
+		// get User wallet key
+		Crypto.getWalletSecretKey(otherPbeSecretKey, walletUser.getEncryptedWalletKey(),
+				walletUser.getCipherAlgorithm(), walletUser.getKeyAlgorithm());
+
+		walletUser = null;
+
+	}
 }

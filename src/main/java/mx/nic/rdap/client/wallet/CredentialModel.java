@@ -22,32 +22,30 @@ public class CredentialModel {
 		// No code
 	}
 
-	public static List<RdapCredential> getCredentialForUserAndServer(User user, String serverId)
+	public static RdapCredential getCredentialForUserAndServer(User user, String serverId)
 			throws DataAccessException, CryptoException {
 		CredentialDAO dao = DataAccessService.getCredentialDAO();
-		List<EncryptedCredential> credentialsForRdapServer = dao
-				.getCredentialsForRdapServer(user.getWalletUser().getId(), serverId);
+		EncryptedCredential encryptedCredential = dao.getCredentialForRdapServer(user.getWalletUser().getId(),
+				serverId);
 
-		if (credentialsForRdapServer == null || credentialsForRdapServer.isEmpty()) {
-			return Collections.emptyList();
+		if (encryptedCredential == null) {
+			return null;
 		}
 
-		List<RdapCredential> credentials = new ArrayList<>();
-		for (EncryptedCredential enc : credentialsForRdapServer) {
-			String decryptUserCredentialPassword;
-			try {
-				decryptUserCredentialPassword = Crypto.decryptUserCredentialPassword(enc.getEncryptedPassword(),
-						user.getWalletUser().getCipherAlgorithm(), user.getUserWalletKey());
-			} catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException
-					| NoSuchPaddingException e) {
-				throw new CryptoException(e);
-			}
-			RdapCredential rdapCredential = new RdapCredential(enc.getId(), enc.getUsername(),
-					decryptUserCredentialPassword, enc.getRdapServerId());
-			credentials.add(rdapCredential);
+		String decryptUserCredentialPassword;
+		try {
+			decryptUserCredentialPassword = Crypto.decryptUserCredentialPassword(
+					encryptedCredential.getEncryptedPassword(), user.getWalletUser().getCipherAlgorithm(),
+					user.getUserWalletKey());
+		} catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException
+				| NoSuchPaddingException e) {
+			throw new CryptoException(e);
 		}
+		RdapCredential rdapCredential = new RdapCredential(encryptedCredential.getId(),
+				encryptedCredential.getUsername(), decryptUserCredentialPassword,
+				encryptedCredential.getRdapServerId());
 
-		return credentials;
+		return rdapCredential;
 	}
 
 	public static List<RdapCredential> getAllForUser(User user) throws DataAccessException, CryptoException {
@@ -123,6 +121,11 @@ public class CredentialModel {
 		encryptedCredential.setEncryptedPassword(encryptUserCredentialPassword);
 		encryptedCredential.setUsername(credential.getUsername());
 		dao.storeCredential(encryptedCredential);
+	}
+
+	public static boolean existCredential(long userId, String serverId) throws DataAccessException {
+		CredentialDAO dao = DataAccessService.getCredentialDAO();
+		return dao.existCredential(userId, serverId);
 	}
 
 }

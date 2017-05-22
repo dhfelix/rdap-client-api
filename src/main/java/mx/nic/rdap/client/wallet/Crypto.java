@@ -31,11 +31,9 @@ public class Crypto {
 		return new SecretKeySpec(generateSecret.getEncoded(), keyAlgorithm);
 	}
 
-	public static SecretKey createNewKey() throws NoSuchAlgorithmException {
-		String walletKeyAlgorithm = WalletModel.getWalletConfiguration().getWalletKeyAlgorithm();
+	public static SecretKey createNewKey(String walletKeyAlgorithm, int keySize) throws NoSuchAlgorithmException {
 		KeyGenerator generator = KeyGenerator.getInstance(walletKeyAlgorithm);
 
-		int keySize = WalletModel.getWalletConfiguration().getUserKeySize();
 		generator.init(keySize);
 
 		return generator.generateKey();

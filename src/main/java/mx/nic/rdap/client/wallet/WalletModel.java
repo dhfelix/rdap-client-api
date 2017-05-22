@@ -88,7 +88,8 @@ public class WalletModel {
 		String base64PasswordHash = Crypto.getBase64PasswordHash(password, saltBytes, userIterations,
 				userHashAlgorithm);
 
-		SecretKey secretKey = Crypto.createNewKey();
+		SecretKey secretKey = Crypto.createNewKey(getWalletConfiguration().getWalletKeyAlgorithm(),
+				getWalletConfiguration().getUserKeySize());
 		SecretKey pbeSecretKey = Crypto.getPBESecretKey(password, userPBEAlgorithm, saltBytes, userIterations,
 				userKeySize, walletKeyAlgorithm);
 

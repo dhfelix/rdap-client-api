@@ -10,6 +10,10 @@ public class RdapCredential {
 
 	String serverId;
 
+	public RdapCredential() {
+		super();
+	}
+
 	public RdapCredential(Long id, String username, String password, String serverId) {
 		super();
 		this.id = id;
