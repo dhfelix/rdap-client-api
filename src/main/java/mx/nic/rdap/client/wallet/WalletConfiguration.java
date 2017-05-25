@@ -213,9 +213,16 @@ public class WalletConfiguration {
 		SecretKey otherPbeSecretKey = Crypto.getPBESecretKey(DUMMY_PASS, walletUser.getPbeAlgorithm(),
 				DatatypeConverter.parseHexBinary(walletUser.getSalt()), walletUser.getIterations(),
 				walletUser.getKeySize(), walletUser.getKeyAlgorithm());
+		if (!otherPbeSecretKey.equals(pbeSecretKey)) {
+			throw new CryptoException("PBEKeys are differents");
+		}
+
 		// get User wallet key
-		Crypto.getWalletSecretKey(otherPbeSecretKey, walletUser.getEncryptedWalletKey(),
-				walletUser.getCipherAlgorithm(), walletUser.getKeyAlgorithm());
+		SecretKey otherWalletSecretKey = Crypto.getWalletSecretKey(otherPbeSecretKey,
+				walletUser.getEncryptedWalletKey(), walletUser.getCipherAlgorithm(), walletUser.getKeyAlgorithm());
+		if (!otherWalletSecretKey.equals(secretKey)) {
+			throw new CryptoException("Wallet keys are differents");
+		}
 
 		walletUser = null;
 

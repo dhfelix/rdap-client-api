@@ -19,8 +19,8 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class Crypto {
 
-	public Crypto() {
-		// TODO Auto-generated constructor stub
+	private Crypto() {
+		// no code
 	}
 
 	public static SecretKey getPBESecretKey(String plainPassword, String pbeAlgorithm, byte[] salt, int iterations,

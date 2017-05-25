@@ -1,7 +1,5 @@
 package mx.nic.rdap.client.wallet;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
@@ -12,6 +10,7 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.xml.bind.DatatypeConverter;
 
+import mx.nic.rdap.client.api.Configuration;
 import mx.nic.rdap.client.dao.exception.DataAccessException;
 import mx.nic.rdap.client.dao.object.WalletUser;
 import mx.nic.rdap.client.exception.ConfigurationException;
@@ -23,23 +22,8 @@ import mx.nic.rdap.client.spi.WalletUserDAO;
 public class WalletModel {
 	private static WalletConfiguration walletConfiguration;
 
-	private static final String DEFAULT_PROPERTIES_FILE = "META-INF/default_wallet_conf.properties";
-
-	private static Properties getDefaultProperties() throws IOException {
-		Properties properties = new Properties();
-
-		try (InputStream inStream = WalletModel.class.getClassLoader().getResourceAsStream(DEFAULT_PROPERTIES_FILE)) {
-			properties.load(inStream);
-		}
-
-		return properties;
-	}
-
-	public static void initWallet(Properties properties) throws IOException, ConfigurationException {
-		Properties defaultProperties = getDefaultProperties();
-		defaultProperties.putAll(properties);
-
-		walletConfiguration = new WalletConfiguration(defaultProperties);
+	public static void initWallet(Properties properties) throws ConfigurationException {
+		walletConfiguration = new WalletConfiguration(Configuration.getConfiguration());
 	}
 
 	public static WalletConfiguration getWalletConfiguration() {
