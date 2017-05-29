@@ -7,12 +7,14 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 
-import mx.nic.rdap.client.api.Configuration;
+import mx.nic.rdap.client.api.APIConfiguration;
 
 public class BootstrapFactory {
 
@@ -31,8 +33,13 @@ public class BootstrapFactory {
 	private static IpBootstrap ipv6Bootstrap;
 	private static DNSBoostrap dnsBootstrap;
 
+	private static ReadWriteLock asnLock = new ReentrantReadWriteLock();
+	private static ReadWriteLock ipv4Lock = new ReentrantReadWriteLock();
+	private static ReadWriteLock ipv6Lock = new ReentrantReadWriteLock();
+	private static ReadWriteLock dnsLock = new ReentrantReadWriteLock();
+
 	public static void init() throws BootstrapException {
-		Properties properties = Configuration.getConfiguration();
+		Properties properties = APIConfiguration.getConfiguration();
 		DNS_URL = properties.getProperty(dnsKey);
 		IPV4_URL = properties.getProperty(ipv4Key);
 		IPV6_URL = properties.getProperty(ipv6Key);
@@ -48,19 +55,19 @@ public class BootstrapFactory {
 	public static void updateBootstrap() throws MalformedURLException, IOException, BootstrapException {
 		JsonObject jsonObject = getJsonObject(ASN_URL);
 		if (Objects.nonNull(jsonObject))
-			asnBootstrap = new ASNBootstrap(jsonObject);
+			setAsnBootstrap(new ASNBootstrap(jsonObject));
 
 		jsonObject = getJsonObject(IPV4_URL);
 		if (Objects.nonNull(jsonObject))
-			ipv4Bootstrap = new IpBootstrap(jsonObject);
+			setIpv4Bootstrap(new IpBootstrap(jsonObject));
 
 		jsonObject = getJsonObject(IPV6_URL);
 		if (Objects.nonNull(jsonObject))
-			ipv6Bootstrap = new IpBootstrap(jsonObject);
+			setIpv6Bootstrap(new IpBootstrap(jsonObject));
 
 		jsonObject = getJsonObject(DNS_URL);
 		if (Objects.nonNull(jsonObject))
-			dnsBootstrap = new DNSBoostrap(jsonObject);
+			setDnsBootstrap(new DNSBoostrap(jsonObject));
 	}
 
 	private static JsonObject getJsonObject(String url) throws MalformedURLException, IOException {
@@ -80,19 +87,83 @@ public class BootstrapFactory {
 	}
 
 	public static ASNBootstrap getAsnBootstrap() {
-		return asnBootstrap;
+		ASNBootstrap result;
+		try {
+			asnLock.readLock().lock();
+			result = asnBootstrap;
+		} finally {
+			asnLock.readLock().unlock();
+		}
+		return result;
 	}
 
 	public static DNSBoostrap getDnsBootstrap() {
-		return dnsBootstrap;
+		DNSBoostrap result;
+		try {
+			dnsLock.readLock().lock();
+			result = dnsBootstrap;
+		} finally {
+			dnsLock.readLock().unlock();
+		}
+		return result;
 	}
 
 	public static IpBootstrap getIpv4Bootstrap() {
-		return ipv4Bootstrap;
+		IpBootstrap result;
+		try {
+			ipv4Lock.readLock().lock();
+			result = ipv4Bootstrap;
+		} finally {
+			ipv4Lock.readLock().unlock();
+		}
+		return result;
 	}
 
 	public static IpBootstrap getIpv6Bootstrap() {
-		return ipv6Bootstrap;
+		IpBootstrap result;
+		try {
+			ipv6Lock.readLock().lock();
+			result = ipv6Bootstrap;
+		} finally {
+			ipv6Lock.readLock().unlock();
+		}
+		return result;
+	}
+
+	public static void setAsnBootstrap(ASNBootstrap asnBootstrap) {
+		try {
+			asnLock.writeLock().lock();
+			BootstrapFactory.asnBootstrap = asnBootstrap;
+		} finally {
+			asnLock.writeLock().unlock();
+		}
+	}
+
+	public static void setIpv4Bootstrap(IpBootstrap ipv4Bootstrap) {
+		try {
+			ipv4Lock.writeLock().lock();
+			BootstrapFactory.ipv4Bootstrap = ipv4Bootstrap;
+		} finally {
+			ipv4Lock.writeLock().unlock();
+		}
+	}
+
+	public static void setIpv6Bootstrap(IpBootstrap ipv6Bootstrap) {
+		try {
+			ipv6Lock.writeLock().lock();
+			BootstrapFactory.ipv6Bootstrap = ipv6Bootstrap;
+		} finally {
+			ipv6Lock.writeLock().unlock();
+		}
+	}
+
+	public static void setDnsBootstrap(DNSBoostrap dnsBootstrap) {
+		try {
+			dnsLock.writeLock().lock();
+			BootstrapFactory.dnsBootstrap = dnsBootstrap;
+		} finally {
+			dnsLock.writeLock().unlock();
+		}
 	}
 
 }

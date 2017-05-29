@@ -16,7 +16,7 @@ import mx.nic.rdap.core.ip.AddressBlock;
 import mx.nic.rdap.core.ip.IpAddressFormatException;
 import mx.nic.rdap.core.ip.IpUtils;
 
-public class IpBootstrap extends BoostrapFile {
+public class IpBootstrap extends InternetNumbersBootstrap {
 
 	private final static int MIN_CIDR = 0;
 	private final static int MAX_IPV4_CIDR = 32;

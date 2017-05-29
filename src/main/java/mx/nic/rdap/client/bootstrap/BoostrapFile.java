@@ -1,5 +1,7 @@
 package mx.nic.rdap.client.bootstrap;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,7 +10,7 @@ import javax.json.JsonObject;
 import javax.json.JsonString;
 import javax.json.JsonValue;
 
-public class BoostrapFile {
+public abstract class BoostrapFile {
 
 	public static final String VERSION_KEY = "version";
 	public static final String PUBLICATION_KEY = "publication";
@@ -20,7 +22,7 @@ public class BoostrapFile {
 	private String Description;
 	private List<RdapService> services;
 
-	public BoostrapFile(JsonObject jsonObject) {
+	public BoostrapFile(JsonObject jsonObject) throws BootstrapException {
 		if (jsonObject.containsKey(BoostrapFile.DESCRIPTION_KEY)) {
 			setDescription(jsonObject.getJsonString(BoostrapFile.DESCRIPTION_KEY).getString());
 		}
@@ -41,15 +43,15 @@ public class BoostrapFile {
 
 	}
 
-	private List<RdapService> parseServices(JsonArray services) {
+	private List<RdapService> parseServices(JsonArray services) throws BootstrapException {
 		List<RdapService> rdapServices = new ArrayList<>();
+
+		List<String> invalidUrl = new ArrayList<>();
 
 		for (JsonValue serviceValue : services) {
 			JsonArray service = (JsonArray) serviceValue;
 			if (service.size() != 2) {
-				// TODO throw an exception.
-				System.err.println("Invalid service : " + service.toString());
-				continue;
+				throw new BootstrapException("Invalid Service:" + service.toString());
 			}
 			RdapService rdapService = new RdapService();
 			for (JsonValue entryValue : service.getJsonArray(0)) {
@@ -58,12 +60,34 @@ public class BoostrapFile {
 			}
 			for (JsonValue urlValue : service.getJsonArray(1)) {
 				JsonString url = (JsonString) urlValue;
-				rdapService.addServiceURL(url.getString());
+				String urlString = url.getString();
+				if (!urlString.endsWith("/")) {
+					urlString = urlString + "/";
+				}
+				if (isValidUrlService(urlString)) {
+					rdapService.addServiceURL(urlString);
+				} else {
+					invalidUrl.add(urlString);
+				}
 			}
 			rdapServices.add(rdapService);
 		}
 
+		if (!invalidUrl.isEmpty()) {
+			throw new BootstrapException("Invalid url services: " + invalidUrl.toString());
+		}
+
 		return rdapServices;
+	}
+
+	private boolean isValidUrlService(String urlString) {
+		try {
+			new URL(urlString);
+		} catch (MalformedURLException e) {
+			return false;
+		}
+
+		return true;
 	}
 
 	public String getDescription() {
@@ -108,4 +132,5 @@ public class BoostrapFile {
 				+ Description + ", services=" + services + "]";
 	}
 
+	public abstract List<String> getServersId();
 }

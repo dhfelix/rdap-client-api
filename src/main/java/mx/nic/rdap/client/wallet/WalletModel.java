@@ -10,7 +10,7 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.xml.bind.DatatypeConverter;
 
-import mx.nic.rdap.client.api.Configuration;
+import mx.nic.rdap.client.api.APIConfiguration;
 import mx.nic.rdap.client.dao.exception.DataAccessException;
 import mx.nic.rdap.client.dao.object.WalletUser;
 import mx.nic.rdap.client.exception.ConfigurationException;
@@ -23,7 +23,7 @@ public class WalletModel {
 	private static WalletConfiguration walletConfiguration;
 
 	public static void initWallet(Properties properties) throws ConfigurationException {
-		walletConfiguration = new WalletConfiguration(Configuration.getConfiguration());
+		walletConfiguration = new WalletConfiguration(APIConfiguration.getConfiguration());
 	}
 
 	public static WalletConfiguration getWalletConfiguration() {

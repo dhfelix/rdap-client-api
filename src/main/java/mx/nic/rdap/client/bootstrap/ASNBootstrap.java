@@ -7,11 +7,11 @@ import java.util.TreeMap;
 
 import javax.json.JsonObject;
 
-public class ASNBootstrap extends BoostrapFile {
+public class ASNBootstrap extends InternetNumbersBootstrap {
 
 	private static NavigableMap<Long, ASNValue> keyForBoostrap;
 
-	public ASNBootstrap(JsonObject jsonObject) {
+	public ASNBootstrap(JsonObject jsonObject) throws BootstrapException {
 		super(jsonObject);
 
 		keyForBoostrap = new TreeMap<>();

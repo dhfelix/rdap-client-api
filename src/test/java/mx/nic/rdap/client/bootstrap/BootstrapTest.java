@@ -7,7 +7,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import mx.nic.rdap.client.api.Configuration;
+import mx.nic.rdap.client.api.APIConfiguration;
 import mx.nic.rdap.client.exception.ConfigurationException;
 import mx.nic.rdap.core.ip.IpAddressFormatException;
 
@@ -15,7 +15,7 @@ public class BootstrapTest {
 
 	@BeforeClass
 	public static void loadConfiguration() throws ConfigurationException, BootstrapException {
-		Configuration.initConfiguration(new Properties());
+		APIConfiguration.initConfiguration(new Properties());
 		BootstrapFactory.init();
 	}
 
@@ -33,6 +33,8 @@ public class BootstrapTest {
 		System.out.println("result: " + rdapUrlByAsn);
 		System.out.println("search time" + TimeUnit.NANOSECONDS.toMillis(endSearch - initSearch) + " ms");
 		System.out.println("=============================================");
+
+		System.out.println(asn.getServersId());
 	}
 
 	@Test
@@ -78,6 +80,8 @@ public class BootstrapTest {
 		System.out.println(rdapUrlByServerId2);
 		List<String> rdapUrlByServerId3 = dns.getRdapUrlByServerId("BR");
 		System.out.println(rdapUrlByServerId3);
+
+		System.out.println("servers Id: " + dns.getServersId());
 
 	}
 
