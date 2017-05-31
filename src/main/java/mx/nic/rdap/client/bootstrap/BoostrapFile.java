@@ -132,5 +132,4 @@ public abstract class BoostrapFile {
 				+ Description + ", services=" + services + "]";
 	}
 
-	public abstract List<String> getServersId();
 }

@@ -9,7 +9,7 @@ import javax.json.JsonObject;
 
 public class ASNBootstrap extends InternetNumbersBootstrap {
 
-	private static NavigableMap<Long, ASNValue> keyForBoostrap;
+	private NavigableMap<Long, ASNValue> keyForBoostrap;
 
 	public ASNBootstrap(JsonObject jsonObject) throws BootstrapException {
 		super(jsonObject);

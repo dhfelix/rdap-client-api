@@ -22,7 +22,7 @@ public class IpBootstrap extends InternetNumbersBootstrap {
 	private final static int MAX_IPV4_CIDR = 32;
 	private final static int MAX_IPV6_CIDR = 128;
 
-	private static NavigableMap<BigInteger, IpValue> keyForBoostrap;
+	private NavigableMap<BigInteger, IpValue> keyForBoostrap;
 
 	public IpBootstrap(JsonObject jsonObject) throws BootstrapException {
 		super(jsonObject);

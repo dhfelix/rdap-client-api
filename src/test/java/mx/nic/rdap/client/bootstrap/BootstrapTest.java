@@ -34,7 +34,6 @@ public class BootstrapTest {
 		System.out.println("search time" + TimeUnit.NANOSECONDS.toMillis(endSearch - initSearch) + " ms");
 		System.out.println("=============================================");
 
-		System.out.println(asn.getServersId());
 	}
 
 	@Test
@@ -81,8 +80,12 @@ public class BootstrapTest {
 		List<String> rdapUrlByServerId3 = dns.getRdapUrlByServerId("BR");
 		System.out.println(rdapUrlByServerId3);
 
-		System.out.println("servers Id: " + dns.getServersId());
+	}
 
+	@Test
+	public void getServerId() {
+		System.out.println("*************  servers id bootstrap  ***************");
+		System.out.println(BootstrapFactory.getServerIdBootstrap().getAllServersId());
 	}
 
 }

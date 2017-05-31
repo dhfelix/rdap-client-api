@@ -32,11 +32,13 @@ public class BootstrapFactory {
 	private static IpBootstrap ipv4Bootstrap;
 	private static IpBootstrap ipv6Bootstrap;
 	private static DNSBoostrap dnsBootstrap;
+	private static ServerIdBootstrap serverIdBootstrap;
 
 	private static ReadWriteLock asnLock = new ReentrantReadWriteLock();
 	private static ReadWriteLock ipv4Lock = new ReentrantReadWriteLock();
 	private static ReadWriteLock ipv6Lock = new ReentrantReadWriteLock();
 	private static ReadWriteLock dnsLock = new ReentrantReadWriteLock();
+	private static ReadWriteLock serverIdLock = new ReentrantReadWriteLock();
 
 	public static void init() throws BootstrapException {
 		Properties properties = APIConfiguration.getConfiguration();
@@ -68,6 +70,11 @@ public class BootstrapFactory {
 		jsonObject = getJsonObject(DNS_URL);
 		if (Objects.nonNull(jsonObject))
 			setDnsBootstrap(new DNSBoostrap(jsonObject));
+
+		ServerIdBootstrap serverIdB = new ServerIdBootstrap(getDnsBootstrap(), getAsnBootstrap(), getIpv4Bootstrap(),
+				getIpv4Bootstrap());
+		setServerIdBootstrap(serverIdB);
+
 	}
 
 	private static JsonObject getJsonObject(String url) throws MalformedURLException, IOException {
@@ -130,6 +137,17 @@ public class BootstrapFactory {
 		return result;
 	}
 
+	public static ServerIdBootstrap getServerIdBootstrap() {
+		ServerIdBootstrap result;
+		try {
+			serverIdLock.readLock().lock();
+			result = serverIdBootstrap;
+		} finally {
+			serverIdLock.readLock().unlock();
+		}
+		return result;
+	}
+
 	public static void setAsnBootstrap(ASNBootstrap asnBootstrap) {
 		try {
 			asnLock.writeLock().lock();
@@ -163,6 +181,15 @@ public class BootstrapFactory {
 			BootstrapFactory.dnsBootstrap = dnsBootstrap;
 		} finally {
 			dnsLock.writeLock().unlock();
+		}
+	}
+
+	public static void setServerIdBootstrap(ServerIdBootstrap serverIdBootstrap) {
+		try {
+			serverIdLock.writeLock().lock();
+			BootstrapFactory.serverIdBootstrap = serverIdBootstrap;
+		} finally {
+			serverIdLock.writeLock().unlock();
 		}
 	}
 
