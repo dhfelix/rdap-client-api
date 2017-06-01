@@ -3,44 +3,56 @@ package mx.nic.rdap.client.bootstrap;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Map.Entry;
 
 import mx.nic.rdap.core.db.DomainLabel;
 import mx.nic.rdap.core.db.DomainLabelException;
 
 public class ServerIdBootstrap {
 
-	private Map<String, List<String>> dnsBootrapToServersId;
+	private Map<String, List<String>> rdapUrlToId;
 
-	private Map<String, List<String>> urlToServerId;
+	private Map<String, List<String>> idToRdapUrl;
 
 	private List<String> serversId;
 
-	public ServerIdBootstrap(DNSBoostrap dnsBoostrap, ASNBootstrap asnBootstrap, IpBootstrap ipv4Bootstrap,
+	protected ServerIdBootstrap(DNSBoostrap dnsBoostrap, ASNBootstrap asnBootstrap, IpBootstrap ipv4Bootstrap,
 			IpBootstrap ipv6Bootstrap) throws BootstrapException {
-		dnsBootrapToServersId = new HashMap<>();
-		urlToServerId = new HashMap<>();
-		Set<String> serversIdSet = new HashSet<>();
 
-		if (dnsBoostrap != null)
-			putDNSBoostrapURL(dnsBoostrap, dnsBootrapToServersId, serversIdSet);
+		idToRdapUrl = new HashMap<>();
 		try {
 			if (asnBootstrap != null)
-				putInternetNumberBootstrapURL(asnBootstrap, urlToServerId, serversIdSet);
+				bootstrapToId(asnBootstrap, idToRdapUrl);
 			if (ipv4Bootstrap != null)
-				putInternetNumberBootstrapURL(ipv4Bootstrap, urlToServerId, serversIdSet);
+				bootstrapToId(ipv4Bootstrap, idToRdapUrl);
 			if (ipv6Bootstrap != null)
-				putInternetNumberBootstrapURL(ipv6Bootstrap, urlToServerId, serversIdSet);
+				bootstrapToId(ipv6Bootstrap, idToRdapUrl);
 		} catch (MalformedURLException e) {
 			throw new BootstrapException(e);
 		}
 
-		serversId = new ArrayList<>(serversIdSet);
+		rdapUrlToId = new HashMap<>();
+		for (Entry<String, List<String>> entry : idToRdapUrl.entrySet()) {
+			List<String> id = new ArrayList<>();
+			id.add(entry.getKey());
+			for (String url : entry.getValue()) {
+				rdapUrlToId.put(url, id);
+			}
+		}
+
+		if (dnsBoostrap != null) {
+			bootstrapToId(dnsBoostrap, idToRdapUrl);
+			putDNSBoostrapURL(dnsBoostrap, rdapUrlToId);
+		}
+
+		serversId = new ArrayList<>(idToRdapUrl.keySet());
 		validateServersId(serversId);
+		serversId = Collections.unmodifiableList(serversId);
+
 	}
 
 	private void validateServersId(List<String> serversId) throws BootstrapException {
@@ -60,66 +72,126 @@ public class ServerIdBootstrap {
 		}
 	}
 
-	private void putInternetNumberBootstrapURL(InternetNumbersBootstrap bootstrap, Map<String, List<String>> map,
-			Set<String> serverIdSet) throws MalformedURLException {
-		List<RdapService> services = bootstrap.getServices();
-		for (RdapService service : services) {
+	private void bootstrapToId(InternetNumbersBootstrap bootstrap, Map<String, List<String>> map)
+			throws MalformedURLException {
+		for (RdapService service : bootstrap.getServices()) {
 			for (String url : service.getServicesURL()) {
-				// if serverId for url exist, continue with next url.
-				if (map.containsKey(url)) {
+				String idFromURL = getServerIdFromURL(new URL(url)).toLowerCase();
+
+				List<String> list = map.get(idFromURL);
+				if (list == null) {
+					list = new ArrayList<>();
+					map.put(idFromURL, list);
+				}
+
+				if (list.contains(url)) {
 					continue;
 				}
 
-				// gets server id from URL
-				String serverIdFromURL = getServerIdFromURL(new URL(url));
-
-				List<String> value = map.get(serverIdFromURL);
-				if (value == null) {
-					value = new ArrayList<>();
-					value.add(serverIdFromURL);
-					serverIdSet.add(serverIdFromURL);
-					map.put(serverIdFromURL, value);
+				int index;
+				if (url.startsWith("https")) {
+					index = 0;
+				} else {
+					index = list.size();
 				}
-				map.put(url, value);
+				list.add(index, url);
+			}
+		}
+	}
+
+	private void bootstrapToId(DNSBoostrap bootstrap, Map<String, List<String>> map) {
+		for (RdapService service : bootstrap.getServices()) {
+			for (String entry : service.getEntries()) {
+				List<String> list = map.get(entry);
+				if (list == null) {
+					map.put(entry, service.getServicesURL());
+					continue;
+				}
+
+				for (String url : service.getServicesURL()) {
+					if (list.contains(url)) {
+						continue;
+					}
+					int index;
+					if (url.startsWith("https")) {
+						index = 0;
+					} else {
+						index = list.size();
+					}
+					list.add(index, url);
+				}
 			}
 		}
 	}
 
 	private String getServerIdFromURL(URL url) {
 		String[] split = url.getHost().split("\\.");
-		return split[split.length - 2].toLowerCase() + "." + split[split.length - 1];
+		return split[split.length - 2] + "." + split[split.length - 1];
 	}
 
-	private void putDNSBoostrapURL(DNSBoostrap dns, Map<String, List<String>> map, Set<String> serverIdSet) {
+	private void putDNSBoostrapURL(DNSBoostrap dns, Map<String, List<String>> urlToId) {
 		List<RdapService> services = dns.getServices();
 		for (RdapService service : services) {
-			List<String> entries = service.getEntries();
-			serverIdSet.addAll(entries);
 			for (String url : service.getServicesURL()) {
-				List<String> values = map.get(url);
-				if (values != null) {
-					List<String> newList = new ArrayList<>(values);
-					newList.addAll(entries);
-					entries = newList;
+				List<String> values = urlToId.get(url);
+				List<String> entries = service.getEntries();
+				if (values == null) {
+					urlToId.put(url, entries);
+					continue;
 				}
-				map.put(url, entries);
+
+				boolean listHaveSameIds = false;
+				if (values.size() == entries.size()) {
+					for (String ids : values) {
+						if (!entries.contains(ids)) {
+							break;
+						}
+					}
+					listHaveSameIds = true;
+				}
+
+				if (!listHaveSameIds) {
+					List<String> newList = new ArrayList<>(values);
+					for (String id : entries) {
+						if (!newList.contains(id)) {
+							newList.add(id);
+						}
+					}
+					urlToId.put(url, newList);
+				}
+
 			}
 		}
+
 	}
 
+	/**
+	 * @param url
+	 *            A {@link String} url that points to a rdap server.
+	 * @return a {@link List} of Ids by <code>url</code>, or null if
+	 *         <code>url</code> is not mapped to id.
+	 */
 	public List<String> getServerIdByRdapURL(String url) {
-		List<String> result;
-		result = dnsBootrapToServersId.get(url);
-		if (result != null) {
-			return result;
-		}
-
-		return urlToServerId.get(url);
+		return rdapUrlToId.get(url);
 
 	}
 
+	/**
+	 * @return All server ids, loaded from the bootstrap files.
+	 */
 	public List<String> getAllServersId() {
 		return serversId;
+	}
+
+	/**
+	 * @param serverId
+	 *            id or zone of an rdap server.
+	 * @return A list of urls that point to rdap servers that handle the id
+	 *         <code>serverId</code>, Or null if the <code>serverId</code> is
+	 *         not handled by a known url.
+	 */
+	public List<String> getRdapUrlById(String serverId) {
+		return idToRdapUrl.get(serverId);
 	}
 
 }

@@ -24,7 +24,7 @@ public class IpBootstrap extends InternetNumbersBootstrap {
 
 	private NavigableMap<BigInteger, IpValue> keyForBoostrap;
 
-	public IpBootstrap(JsonObject jsonObject) throws BootstrapException {
+	protected IpBootstrap(JsonObject jsonObject) throws BootstrapException {
 		super(jsonObject);
 
 		keyForBoostrap = new TreeMap<>();

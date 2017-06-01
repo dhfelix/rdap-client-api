@@ -34,7 +34,7 @@ public class RdapService {
 	}
 
 	public void addServiceURL(String serviceURL) {
-		// Always add https urls;
+		// Always add https urls first;
 		int index;
 		if (serviceURL.startsWith("https")) {
 			index = 0;

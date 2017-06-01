@@ -85,7 +85,12 @@ public class BootstrapTest {
 	@Test
 	public void getServerId() {
 		System.out.println("*************  servers id bootstrap  ***************");
-		System.out.println(BootstrapFactory.getServerIdBootstrap().getAllServersId());
+		ServerIdBootstrap serverIdBootstrap = BootstrapFactory.getServerIdBootstrap();
+		System.out.println(serverIdBootstrap.getAllServersId());
+		System.out.println(serverIdBootstrap.getRdapUrlById("arin.net"));
+		System.out.println(serverIdBootstrap.getRdapUrlById("ndkljkld"));
+		System.out.println(serverIdBootstrap.getServerIdByRdapURL("ndkljkld"));
+
 	}
 
 }

@@ -10,7 +10,7 @@ public class DNSBoostrap extends BoostrapFile {
 
 	private Map<String, List<String>> dnsBootstrap;
 
-	public DNSBoostrap(JsonObject jsonObject) throws BootstrapException {
+	protected DNSBoostrap(JsonObject jsonObject) throws BootstrapException {
 		super(jsonObject);
 
 		dnsBootstrap = new HashMap<>();

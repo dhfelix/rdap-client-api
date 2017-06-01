@@ -11,7 +11,7 @@ public class ASNBootstrap extends InternetNumbersBootstrap {
 
 	private NavigableMap<Long, ASNValue> keyForBoostrap;
 
-	public ASNBootstrap(JsonObject jsonObject) throws BootstrapException {
+	protected ASNBootstrap(JsonObject jsonObject) throws BootstrapException {
 		super(jsonObject);
 
 		keyForBoostrap = new TreeMap<>();

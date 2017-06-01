@@ -56,11 +56,11 @@ public abstract class BoostrapFile {
 			RdapService rdapService = new RdapService();
 			for (JsonValue entryValue : service.getJsonArray(0)) {
 				JsonString entry = (JsonString) entryValue;
-				rdapService.addEntry(entry.getString());
+				rdapService.addEntry(entry.getString().toLowerCase());
 			}
 			for (JsonValue urlValue : service.getJsonArray(1)) {
 				JsonString url = (JsonString) urlValue;
-				String urlString = url.getString();
+				String urlString = url.getString().toLowerCase();
 				if (!urlString.endsWith("/")) {
 					urlString = urlString + "/";
 				}
