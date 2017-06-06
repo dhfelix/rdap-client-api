@@ -6,11 +6,11 @@ import java.util.Map;
 
 import javax.json.JsonObject;
 
-public class DNSBoostrap extends BoostrapFile {
+public class DNSBootstrap extends BoostrapFile {
 
 	private Map<String, List<String>> dnsBootstrap;
 
-	protected DNSBoostrap(JsonObject jsonObject) throws BootstrapException {
+	protected DNSBootstrap(JsonObject jsonObject) throws BootstrapException {
 		super(jsonObject);
 
 		dnsBootstrap = new HashMap<>();

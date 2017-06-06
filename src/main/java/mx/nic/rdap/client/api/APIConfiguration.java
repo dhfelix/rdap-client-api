@@ -15,7 +15,9 @@ public class APIConfiguration {
 
 	private static final String PROPERTIES_FILE = "META-INF/default_api_configuration.properties";
 
-	public static Properties apiConfiguration;
+	private static Properties apiConfiguration;
+
+	private static BootstrapConfiguration configuration;
 
 	/**
 	 * Loads the default configuration, and then overwrites with the user's
@@ -36,6 +38,8 @@ public class APIConfiguration {
 
 		p.putAll(userProperties);
 		apiConfiguration = p;
+
+		configuration = new BootstrapConfiguration(apiConfiguration);
 	}
 
 	/**
@@ -43,6 +47,19 @@ public class APIConfiguration {
 	 */
 	public static Properties getConfiguration() {
 		return apiConfiguration;
+	}
+
+	/**
+	 * @return Configuration for the bootstrap
+	 * @throws ConfigurationException
+	 *             When this API Configuration has not been initialized.
+	 */
+	public static BootstrapConfiguration getBootstrapConfiguration() throws ConfigurationException {
+		if (apiConfiguration == null || configuration == null) {
+			throw new ConfigurationException("The API has not been initialized");
+		}
+
+		return configuration;
 	}
 
 }

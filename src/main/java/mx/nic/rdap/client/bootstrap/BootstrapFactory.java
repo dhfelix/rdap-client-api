@@ -6,32 +6,28 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Objects;
-import java.util.Properties;
+import java.util.Timer;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 
-import mx.nic.rdap.client.api.APIConfiguration;
+import mx.nic.rdap.client.api.BootstrapConfiguration;
 
 public class BootstrapFactory {
 
-	private static String DNS_URL;
-	private static String IPV4_URL;
-	private static String IPV6_URL;
-	private static String ASN_URL;
+	private static final Logger logger = Logger.getLogger(BootstrapFactory.class.getName());
 
-	private static final String dnsKey = "bootstrap.dns_url";
-	private static final String ipv4Key = "bootstrap.ipv4_url";
-	private static final String ipv6Key = "bootstrap.ipv6_url";
-	private static final String asnKey = "bootstrap.asn_url";
+	private static BootstrapConfiguration configuration;
 
 	private static ASNBootstrap asnBootstrap;
 	private static IpBootstrap ipv4Bootstrap;
 	private static IpBootstrap ipv6Bootstrap;
-	private static DNSBoostrap dnsBootstrap;
+	private static DNSBootstrap dnsBootstrap;
 	private static ServerIdBootstrap serverIdBootstrap;
 
 	private static ReadWriteLock asnLock = new ReentrantReadWriteLock();
@@ -40,40 +36,70 @@ public class BootstrapFactory {
 	private static ReadWriteLock dnsLock = new ReentrantReadWriteLock();
 	private static ReadWriteLock serverIdLock = new ReentrantReadWriteLock();
 
-	public static void init() throws BootstrapException {
-		Properties properties = APIConfiguration.getConfiguration();
-		DNS_URL = properties.getProperty(dnsKey);
-		IPV4_URL = properties.getProperty(ipv4Key);
-		IPV6_URL = properties.getProperty(ipv6Key);
-		ASN_URL = properties.getProperty(asnKey);
+	private static Timer timer;
 
+	public synchronized static void init(BootstrapConfiguration bootstrapConfiguration) throws BootstrapException {
+		logger.log(Level.INFO, "Loading Bootstrap from IANA.");
+		configuration = bootstrapConfiguration;
 		try {
 			updateBootstrap();
 		} catch (IOException e) {
 			throw new BootstrapException(e);
 		}
+
+		long period = configuration.getTimerPeriod();
+		if (period > 0 && timer == null) {
+			timer = new Timer("BootstrapUpdaterThread", true);
+			timer.schedule(new BootstrapTask(), period, period);
+		}
 	}
 
-	public static void updateBootstrap() throws MalformedURLException, IOException, BootstrapException {
-		JsonObject jsonObject = getJsonObject(ASN_URL);
-		if (Objects.nonNull(jsonObject))
-			setAsnBootstrap(new ASNBootstrap(jsonObject));
+	public static void initFromJson(JsonObject asn, JsonObject ipv4, JsonObject ipv6, JsonObject dns)
+			throws BootstrapException {
+		logger.log(Level.INFO, "Loading Bootstrap from JSON files.");
+		updateBootstrap(asn, ipv4, ipv6, dns);
+	}
 
-		jsonObject = getJsonObject(IPV4_URL);
-		if (Objects.nonNull(jsonObject))
-			setIpv4Bootstrap(new IpBootstrap(jsonObject));
+	private static void updateBootstrap(JsonObject asn, JsonObject ipv4, JsonObject ipv6, JsonObject dns)
+			throws BootstrapException {
 
-		jsonObject = getJsonObject(IPV6_URL);
-		if (Objects.nonNull(jsonObject))
-			setIpv6Bootstrap(new IpBootstrap(jsonObject));
+		// first create bootstrap objects
+		ASNBootstrap asnB = null;
+		if (Objects.nonNull(asn)) {
+			asnB = new ASNBootstrap(asn);
+		}
+		IpBootstrap ipv4B = null;
+		if (Objects.nonNull(ipv4)) {
+			ipv4B = new IpBootstrap(ipv4);
+		}
+		IpBootstrap ipv6B = null;
+		if (Objects.nonNull(ipv6)) {
+			ipv6B = new IpBootstrap(ipv6);
+		}
+		DNSBootstrap dnsB = null;
+		if (Objects.nonNull(dns)) {
+			dnsB = new DNSBootstrap(dns);
+		}
+		ServerIdBootstrap serverIdB = new ServerIdBootstrap(dnsB, asnB, ipv4B, ipv6B);
 
-		jsonObject = getJsonObject(DNS_URL);
-		if (Objects.nonNull(jsonObject))
-			setDnsBootstrap(new DNSBoostrap(jsonObject));
-
-		ServerIdBootstrap serverIdB = new ServerIdBootstrap(getDnsBootstrap(), getAsnBootstrap(), getIpv4Bootstrap(),
-				getIpv4Bootstrap());
+		// then update bootstraps
+		setAsnBootstrap(asnB);
+		setIpv4Bootstrap(ipv4B);
+		setIpv6Bootstrap(ipv6B);
+		setDnsBootstrap(dnsB);
 		setServerIdBootstrap(serverIdB);
+	}
+
+	protected static void updateBootstrap() throws MalformedURLException, IOException, BootstrapException {
+		JsonObject asn = getJsonObject(configuration.getAsnUrl());
+
+		JsonObject ipv4 = getJsonObject(configuration.getIpv4Url());
+
+		JsonObject ipv6 = getJsonObject(configuration.getIpv6Url());
+
+		JsonObject dns = getJsonObject(configuration.getDnsUrl());
+
+		updateBootstrap(asn, ipv4, ipv6, dns);
 
 	}
 
@@ -88,10 +114,14 @@ public class BootstrapFactory {
 			try (InputStream ins = httpConnection.getInputStream(); JsonReader jsonReader = Json.createReader(ins);) {
 				jsonObject = jsonReader.readObject();
 			}
+		} else {
+			logger.log(Level.WARNING, "cannot read bootstrap from : '" + url + "', responseCode: " + responseCode);
 		}
 
 		return jsonObject;
 	}
+
+	// getters and setters
 
 	public static ASNBootstrap getAsnBootstrap() {
 		ASNBootstrap result;
@@ -104,8 +134,8 @@ public class BootstrapFactory {
 		return result;
 	}
 
-	public static DNSBoostrap getDnsBootstrap() {
-		DNSBoostrap result;
+	public static DNSBootstrap getDnsBootstrap() {
+		DNSBootstrap result;
 		try {
 			dnsLock.readLock().lock();
 			result = dnsBootstrap;
@@ -175,7 +205,7 @@ public class BootstrapFactory {
 		}
 	}
 
-	public static void setDnsBootstrap(DNSBoostrap dnsBootstrap) {
+	public static void setDnsBootstrap(DNSBootstrap dnsBootstrap) {
 		try {
 			dnsLock.writeLock().lock();
 			BootstrapFactory.dnsBootstrap = dnsBootstrap;

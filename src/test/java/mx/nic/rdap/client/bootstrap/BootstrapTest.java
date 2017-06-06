@@ -16,7 +16,7 @@ public class BootstrapTest {
 	@BeforeClass
 	public static void loadConfiguration() throws ConfigurationException, BootstrapException {
 		APIConfiguration.initConfiguration(new Properties());
-		BootstrapFactory.init();
+		BootstrapFactory.init(APIConfiguration.getBootstrapConfiguration());
 	}
 
 	@Test
@@ -71,7 +71,7 @@ public class BootstrapTest {
 	@Test
 	public void getDNS() {
 		System.out.println("********* dns search ***********");
-		DNSBoostrap dns = BootstrapFactory.getDnsBootstrap();
+		DNSBootstrap dns = BootstrapFactory.getDnsBootstrap();
 
 		List<String> rdapUrlByServerId = dns.getRdapUrlByServerId("br");
 		System.out.println(rdapUrlByServerId);

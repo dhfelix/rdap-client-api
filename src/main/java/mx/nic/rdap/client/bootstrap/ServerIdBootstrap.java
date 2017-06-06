@@ -20,7 +20,7 @@ public class ServerIdBootstrap {
 
 	private List<String> serversId;
 
-	protected ServerIdBootstrap(DNSBoostrap dnsBoostrap, ASNBootstrap asnBootstrap, IpBootstrap ipv4Bootstrap,
+	protected ServerIdBootstrap(DNSBootstrap dnsBoostrap, ASNBootstrap asnBootstrap, IpBootstrap ipv4Bootstrap,
 			IpBootstrap ipv6Bootstrap) throws BootstrapException {
 
 		idToRdapUrl = new HashMap<>();
@@ -99,7 +99,7 @@ public class ServerIdBootstrap {
 		}
 	}
 
-	private void bootstrapToId(DNSBoostrap bootstrap, Map<String, List<String>> map) {
+	private void bootstrapToId(DNSBootstrap bootstrap, Map<String, List<String>> map) {
 		for (RdapService service : bootstrap.getServices()) {
 			for (String entry : service.getEntries()) {
 				List<String> list = map.get(entry);
@@ -129,7 +129,7 @@ public class ServerIdBootstrap {
 		return split[split.length - 2] + "." + split[split.length - 1];
 	}
 
-	private void putDNSBoostrapURL(DNSBoostrap dns, Map<String, List<String>> urlToId) {
+	private void putDNSBoostrapURL(DNSBootstrap dns, Map<String, List<String>> urlToId) {
 		List<RdapService> services = dns.getServices();
 		for (RdapService service : services) {
 			for (String url : service.getServicesURL()) {
@@ -140,24 +140,26 @@ public class ServerIdBootstrap {
 					continue;
 				}
 
-				boolean listHaveSameIds = false;
+				boolean listHaveSameIds = true;
 				if (values.size() == entries.size()) {
 					for (String ids : values) {
 						if (!entries.contains(ids)) {
+							listHaveSameIds = false;
 							break;
 						}
 					}
-					listHaveSameIds = true;
+				} else {
+					listHaveSameIds = false;
 				}
 
 				if (!listHaveSameIds) {
-					List<String> newList = new ArrayList<>(values);
+					List<String> newIdList = new ArrayList<>(values);
 					for (String id : entries) {
-						if (!newList.contains(id)) {
-							newList.add(id);
+						if (!newIdList.contains(id)) {
+							newIdList.add(id);
 						}
 					}
-					urlToId.put(url, newList);
+					urlToId.put(url, newIdList);
 				}
 
 			}
