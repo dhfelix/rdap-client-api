@@ -6,7 +6,7 @@ import java.util.Map;
 
 import javax.json.JsonObject;
 
-public class DNSBootstrap extends BoostrapFile {
+public class DNSBootstrap extends BootstrapFile {
 
 	private Map<String, List<String>> dnsBootstrap;
 

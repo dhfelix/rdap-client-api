@@ -3,7 +3,6 @@ package mx.nic.rdap.client.wallet;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.Properties;
 
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
@@ -22,7 +21,7 @@ import mx.nic.rdap.client.spi.WalletUserDAO;
 public class WalletModel {
 	private static WalletConfiguration walletConfiguration;
 
-	public static void initWallet(Properties properties) throws ConfigurationException {
+	public static void initWallet() throws ConfigurationException {
 		walletConfiguration = new WalletConfiguration(APIConfiguration.getConfiguration());
 	}
 

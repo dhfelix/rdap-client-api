@@ -10,7 +10,7 @@ import javax.json.JsonObject;
 import javax.json.JsonString;
 import javax.json.JsonValue;
 
-public abstract class BoostrapFile {
+public abstract class BootstrapFile {
 
 	public static final String VERSION_KEY = "version";
 	public static final String PUBLICATION_KEY = "publication";
@@ -22,22 +22,22 @@ public abstract class BoostrapFile {
 	private String Description;
 	private List<RdapService> services;
 
-	public BoostrapFile(JsonObject jsonObject) throws BootstrapException {
-		if (jsonObject.containsKey(BoostrapFile.DESCRIPTION_KEY)) {
-			setDescription(jsonObject.getJsonString(BoostrapFile.DESCRIPTION_KEY).getString());
+	public BootstrapFile(JsonObject jsonObject) throws BootstrapException {
+		if (jsonObject.containsKey(BootstrapFile.DESCRIPTION_KEY)) {
+			setDescription(jsonObject.getJsonString(BootstrapFile.DESCRIPTION_KEY).getString());
 		}
 
-		if (jsonObject.containsKey(BoostrapFile.VERSION_KEY)) {
-			setVersion(jsonObject.getJsonString(BoostrapFile.VERSION_KEY).getString());
+		if (jsonObject.containsKey(BootstrapFile.VERSION_KEY)) {
+			setVersion(jsonObject.getJsonString(BootstrapFile.VERSION_KEY).getString());
 		}
 
-		if (jsonObject.containsKey(BoostrapFile.PUBLICATION_KEY)) {
-			setPublicationDate(jsonObject.getJsonString(BoostrapFile.PUBLICATION_KEY).getString());
+		if (jsonObject.containsKey(BootstrapFile.PUBLICATION_KEY)) {
+			setPublicationDate(jsonObject.getJsonString(BootstrapFile.PUBLICATION_KEY).getString());
 		}
 
 		services = new ArrayList<>();
-		if (jsonObject.containsKey(BoostrapFile.SERVICES_KEY)) {
-			List<RdapService> parseServices = parseServices(jsonObject.getJsonArray(BoostrapFile.SERVICES_KEY));
+		if (jsonObject.containsKey(BootstrapFile.SERVICES_KEY)) {
+			List<RdapService> parseServices = parseServices(jsonObject.getJsonArray(BootstrapFile.SERVICES_KEY));
 			getServices().addAll(parseServices);
 		}
 
